@@ -1,0 +1,6 @@
+[submodule "movesense-device-lib"]
+	path = movesense-device-lib
+	url = https://bitbucket.org/suunto/movesense-device-lib.git
+[submodule "movesense-mobile-lib"]
+	path = movesense-mobile-lib
+	url = https://bitbucket.org/suunto/movesense-mobile-lib.git
