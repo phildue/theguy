@@ -246,7 +246,7 @@ def main():
 
     # LED
         j += 20
-        if j > 255:
+        if j > 140:
             j = 0
 
         gradient = diff_total_smooth * 255 / RED_THRESHOLD
