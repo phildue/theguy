@@ -16,7 +16,7 @@ def time_diff(t2,t1):
   return t2-t1
 # The number of NeoPixels
 num_pixels = 30
-num_players = 2
+num_players = 3
 # The order of the pixel colors - RGB or GRB. Some NeoPixels have red and green reversed!
 # For RGBW NeoPixels, simply change the ORDER to RGBW or GRBW.
 ORDER = neopixel.GRB
@@ -34,8 +34,8 @@ t=[0]*num_players
 n_calibration = 200
 idx = 0
 accel_data = np.zeros((num_players,win_size,3))
-diff_total_buffer = [0]*win_size
-diff_total_smooth = 0
+diff_total_buffer = np.zeros((num_players,win_size))
+diff_total_smooth = np.zeros((num_players,win_size))
 RED_THRESHOLD = 8
 
 
@@ -112,6 +112,7 @@ def on_message(client, userdata, msg):
     #######print(source)
     topic,id_player = source
 
+
     topic = str(topic)
     id_player = int(lookup_player_id.index(id_player))
     values = [float(n) for n in str(msg.payload)[2:-1].split(',')]
@@ -131,6 +132,15 @@ def on_message(client, userdata, msg):
 
     accel_data[id_player,idx%win_size] = values[:3]
 
+    if id_player == 0:
+        accel_data[1,idx%win_size] = accel_data[1,(idx-1)%win_size]
+        accel_data[2%win_size] = accel_data[2,(idx-1)%win_size]
+    elif id_player == 1:
+        accel_data[0,idx%win_size] = accel_data[0,(idx-1)%win_size]
+        accel_data[1%win_size] = accel_data[2,(idx-1)%win_size]
+    elif id_player == 2:
+        accel_data[0,idx%win_size] = accel_data[0,(idx-1)%win_size]
+        accel_data[1%win_size] = accel_data[1,(idx-1)%win_size]
       #print(np.round(euler,2))
 
 
@@ -144,13 +154,23 @@ def on_message(client, userdata, msg):
     # accel_data[1,idx%win_size,2]))
 
 
-    diff_total_x = np.abs(accel_data[0,idx%win_size,0] - accel_data[1,idx%win_size,0])
-    diff_total_y = np.abs(accel_data[0,idx%win_size,1] - accel_data[1,idx%win_size,1])
-    diff_total_z = np.abs(accel_data[0,idx%win_size,2] - accel_data[1,idx%win_size,2])
-    diff_total   = np.sqrt(diff_total_x ** 2 + diff_total_y ** 2 + diff_total_z ** 2)
+    diff_total_p1_x = np.abs(accel_data[0,idx%win_size,0] - accel_data[1,idx%win_size,0])
+    diff_total_p1_y = np.abs(accel_data[0,idx%win_size,1] - accel_data[1,idx%win_size,1])
+    diff_total_p1_z = np.abs(accel_data[0,idx%win_size,2] - accel_data[1,idx%win_size,2])
+    diff_total_p1   = np.sqrt(diff_total_p1_x ** 2 + diff_total_p1_y ** 2 + diff_total_p1_z ** 2)
 
-    diff_total_buffer[idx] = diff_total
-    diff_total_smooth = np.mean(diff_total_buffer, 0)
+    diff_total_p2_x = np.abs(accel_data[0,idx%win_size,0] - accel_data[1,idx%win_size,0])
+    diff_total_p2_y = np.abs(accel_data[0,idx%win_size,1] - accel_data[1,idx%win_size,1])
+    diff_total_p2_z = np.abs(accel_data[0,idx%win_size,2] - accel_data[1,idx%win_size,2])
+    diff_total_p2   = np.sqrt(diff_total_p2_x ** 2 + diff_total_p2_y ** 2 + diff_total_p2_z ** 2)
+
+    diff_total_buffer[0,idx] = 0
+    diff_total_buffer[1,idx] = diff_total_p1
+    diff_total_buffer[2,idx] = diff_total_p2
+
+    diff_total_smooth[0,idx] = 0
+    diff_total_smooth[1,idx] = np.mean(diff_total_buffer[1], 0)
+    diff_total_smooth[2,idx] = np.mean(diff_total_buffer[2], 0)
 
     # print("x: {}, y: {}, z: {}, tot: {}, sm: {}".format(diff_total_x, diff_total_y, diff_total_z, diff_total, diff_total_smooth))
     
@@ -168,7 +188,7 @@ def on_message(client, userdata, msg):
 
 #    print('Time Warped Distance: {}'.format(dtw_diff))
 
-    if diff_total_smooth > RED_THRESHOLD:
+    if diff_total_smooth[1] > RED_THRESHOLD or diff_total_smooth[2] > RED_THRESHOLD:
         red.set()
         # print("Out of Sync")
     else:
@@ -177,8 +197,7 @@ def on_message(client, userdata, msg):
 
 #    with open('outfile.csv', 'a') as f:
 #       f.write('{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n'.format(
-#        sensors[0].ax,
-#        sensors[0].ay,
+#        sensors[0].ax,ESHOLD,
 #        sensors[0].az,
 #        sensors[0].gx,
 #        sensors[0].gy,
